@@ -20,10 +20,10 @@ void UGhostAttackHandler::Execute(const FGhostActionData& Data, ACharacter* Owne
 
     //ヒット判定を追加
     FVector Start = Owner->GetActorLocation();
-    FVector End = Start + Owner->GetActorForwardVector() * AttackRange;
+    FVector End = Start + Owner->GetActorForwardVector() * m_AttackRange;
 
     TArray<FHitResult> HitResults;
-    FCollisionShape Sphere = FCollisionShape::MakeSphere(AttackRadius);
+    FCollisionShape Sphere = FCollisionShape::MakeSphere(m_AttackRadius);
 
     bool bHit = Owner->GetWorld()->SweepMultiByChannel(
         HitResults,
@@ -46,13 +46,14 @@ void UGhostAttackHandler::Execute(const FGhostActionData& Data, ACharacter* Owne
         {
             UGameplayStatics::ApplyDamage(
                 HitActor,
-                AttackDamage,
+                m_AttackDamage,
                 nullptr,
                 Owner,
                 UDamageType::StaticClass()
             );
 
-            //GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Orange, TEXT("Ghost: 敵にダメージを与えた！"));
+            GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Orange,
+                TEXT("Ghost: 敵にダメージを与えた！"));
         }
     }
 }

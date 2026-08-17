@@ -1,11 +1,14 @@
-//GhostAIController.cpp
-
 #include "Ghost/AI/GhostAIController.h"
-#include "Enemy/EnemyChara.h"
-#include "BehaviorTree/BlackboardComponent.h"
+#include "Ghost/GhostCharacter/GhostCharacter.h"
+#include "Player/CombatComponent.h"
+#include "GameFramework/Pawn.h"
 #include "Kismet/GameplayStatics.h"
+#include "Navigation/PathFollowingComponent.h"
 
-AGhostAIController::AGhostAIController()
+AGhostAIController::AGhostAIController() :
+    m_AttackRange(150.f),
+    m_AttackCooldown(1.2f),
+    m_AttackTimer(0.f)
 {
     PrimaryActorTick.bCanEverTick = true;
 }
@@ -14,71 +17,56 @@ void AGhostAIController::OnPossess(APawn* InPawn)
 {
     Super::OnPossess(InPawn);
 
-    //GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Yellow, TEXT("GhostAIController: OnPossesså‘¼ã°ã‚ŒãŸ"));
+    // ƒ|ƒ[ƒbƒVƒ‡ƒ“Š®—¹‚ÉƒvƒŒƒCƒ„[‚ğƒ^[ƒQƒbƒg‚Æ‚µ‚Äİ’è
+    TargetPawn = FindPlayerPawn();
 }
 
 void AGhostAIController::Tick(float DeltaTime)
 {
     Super::Tick(DeltaTime);
 
-    UBlackboardComponent* BB = GetBlackboardComponent();
-    if (!BB) return;
-
-    APawn* OwnerPawn = GetPawn();
-    if (!OwnerPawn) return;
-
-    // æœ€å¯„ã‚Šã®æ•µã‚’æ¢ã—ã¦Blackboardã«æ›¸ãè¾¼ã‚€
-    AActor* NearestEnemy = FindNearestEnemy();
-    BB->SetValueAsObject(FName("TargetEnemy"), NearestEnemy);
-
-    if (NearestEnemy)
+    if (!TargetPawn)
     {
-        float Distance = FVector::Dist(
-            OwnerPawn->GetActorLocation(),
-            NearestEnemy->GetActorLocation()
-        );
-        bool bInRange = Distance <= AttackRange;
-        BB->SetValueAsBool(FName("IsInAttackRange"), bInRange);
-
-        //GEngine->AddOnScreenDebugMessage(-1, 0.1f, FColor::White,
-        //    FString::Printf(TEXT("è·é›¢: %.1f æ”»æ’ƒç¯„å›²: %.1f InRange: %s"),
-        //        Distance, AttackRange, bInRange ? TEXT("TRUE") : TEXT("FALSE")));
-    }
-    else
-    {
-        BB->SetValueAsBool(FName("IsInAttackRange"), false);
+        TargetPawn = FindPlayerPawn();
+        if (!TargetPawn) return;
     }
 
+    const float DistToTarget = FVector::Dist(
+        GetPawn()->GetActorLocation(),
+        TargetPawn->GetActorLocation());
 
+    // ------------------------------------------------------------------
+    // ˆÚ“®FUŒ‚Ë’öŠO‚È‚çÚ‹ß
+    // ------------------------------------------------------------------
+    if (DistToTarget > m_AttackRange)
+    {
+        MoveToActor(TargetPawn, m_AttackRange * 0.8f);
+    }
+
+    // ------------------------------------------------------------------
+    // UŒ‚FË’ö“à‚È‚çƒN[ƒ‹ƒ_ƒEƒ“‚ğÁ”ï‚µ‚ÄUŒ‚
+    // ------------------------------------------------------------------
+    m_AttackTimer += DeltaTime;
+    if (DistToTarget <= m_AttackRange && m_AttackTimer >= m_AttackCooldown)
+    {
+        TryAttack();
+        m_AttackTimer = 0.f;
+    }
 }
 
-AActor* AGhostAIController::FindNearestEnemy() const
+APawn* AGhostAIController::FindPlayerPawn() const
 {
-    APawn* OwnerPawn = GetPawn();
-    if (!OwnerPawn) return nullptr;
+    APlayerController* PC = UGameplayStatics::GetPlayerController(GetWorld(), 0);
+    return PC ? PC->GetPawn() : nullptr;
+}
 
-    TArray<AActor*> Enemies;
-    UGameplayStatics::GetAllActorsOfClass(
-        GetWorld(),
-        AEnemyChara::StaticClass(),
-        Enemies
-    );
+void AGhostAIController::TryAttack()
+{
+    AGhostCharacter* Ghost = Cast<AGhostCharacter>(GetPawn());
+    if (!Ghost || !Ghost->CombatComponent) return;
 
-    AActor* Nearest = nullptr;
-    float MinDist = FLT_MAX;
-
-    for (AActor* Enemy : Enemies)
+    if (!Ghost->CombatComponent->IsAttacking())
     {
-        float Dist = FVector::Dist(
-            OwnerPawn->GetActorLocation(),
-            Enemy->GetActorLocation()
-        );
-        if (Dist < MinDist)
-        {
-            MinDist = Dist;
-            Nearest = Enemy;
-        }
+        Ghost->CombatComponent->ExecuteAttack();
     }
-
-    return Nearest;
 }

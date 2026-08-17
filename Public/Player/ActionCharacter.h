@@ -1,8 +1,6 @@
-//ActionCharacter.h
-//アクションキャラクターヘッダー
-// 
-//プレイヤーのコアクラス
-//入力とカメラ制御、各コンポーネント(戦闘・移動・残像)への処理の委譲
+// ActionCharacter.h
+// プレイヤーのコアクラス
+// 入力・カメラ制御・各コンポーネントへの委譲
 
 #pragma once
 
@@ -10,13 +8,15 @@
 #include "GameFramework/Character.h"
 #include "InputActionValue.h"
 #include "Player/LockOnComponent.h"
-#include "Ghost/GhostCharacter.h"
-#include "Ghost/GhostRecorderComponent.h"
+#include "Ghost/GhostCharacter/GhostCharacter.h"
+#include "Player/GhostRecorderComponent.h"
 #include "ActionCharacter.generated.h"
 
 class UCombatComponent;
 class USpringArmComponent;
 class UCameraComponent;
+class UGhostManagerComponent;
+class UBatManagerComponent;
 
 UCLASS()
 class ECHO_API AActionCharacter : public ACharacter
@@ -28,194 +28,192 @@ public:
 
 protected:
 	virtual void BeginPlay() override;
-
 	//オートダッシュの計測に使う
 	virtual void Tick(float DeltaTime) override;
-
-	//入力をバインドする関数（ACharacterの標準機能をオーバーライド）
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
-
 	//ジャンプが成功したときに呼ばれる関数
 	virtual void OnJumped_Implementation() override;
-
-	//地面などに着地した時に呼ばれる関数
+	//地面などに着地したときに呼ばれる関数
 	virtual void Landed(const FHitResult& Hit) override;
 
-	// --- インプット ---
-
+	// -----------------------------------------------------------------------
+	// 入力
+	// -----------------------------------------------------------------------
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
 	class UInputMappingContext* DefaultMappingContext;
 
-	//攻撃アクション
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
 	class UInputAction* AttackAction;
+	void Attack();
 
-	//ロックオン入力
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
-	class UInputAction* LockOnAction;
-
-	//移動アクション
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
 	class UInputAction* MoveAction;
+	void Move(const FInputActionValue& Value);
 
-	//ジャンプアクション
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
+	class UInputAction* LookAction;
+	void Look(const FInputActionValue& Value);
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
+	class UInputAction* LockOnAction;
+	void LockOn();
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
 	class UInputAction* JumpAction;
 
-	//視点移動アクション
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
-	class UInputAction* LookAction;
-
-	//回避アクション
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
 	class UInputAction* DodgeAction;
+	void Dodge();
 
 	//召喚アクション
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
 	class UInputAction* SummonAction;
 
-	// --- コンポーネント ---
+	// -----------------------------------------------------------------------
+	// 移動
+	// -----------------------------------------------------------------------
 
-	//戦闘統括コンポーネント
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
-	UCombatComponent* CombatComponent;
+	//オートダッシュへの移行時間
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement")
+	float m_TimeToSprint;
 
-	//ロックオンコンポーネント
-	UPROPERTY(VisibleAnywhere)
-	ULockOnComponent* LockOnComponent;
+	//走り続けている時間を計測する変数
+	float m_CurrentRunTime;
+	//走り開始と終了
+	void StartSprint();
+	void StopSprint();
 
-	//カメラ追従用のスプリングアーム
+	// -----------------------------------------------------------------------
+	// カメラ
+	// -----------------------------------------------------------------------
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera")
 	USpringArmComponent* CameraBoom;
 
-	//メインカメラ
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera")
 	UCameraComponent* FollowCamera;
 
-	//プレイヤーの行動を記録するコンポーネント
+	// -----------------------------------------------------------------------
+	// 戦闘
+	// -----------------------------------------------------------------------
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Combat", meta = (AllowPrivateAccess = "true"))
+	class UCombatComponent* CombatComponent;
+
+public:
+	UFUNCTION(BlueprintCallable, Category = "Movement")
+	class UActionMovementComponent* GetActionMovementComponent() const;
+
+	// -----------------------------------------------------------------------
+	// ロックオン処理
+	// -----------------------------------------------------------------------
+
+		//ロックオンコンポーネント
 	UPROPERTY(VisibleAnywhere)
-	UGhostRecorderComponent* GhostRecorder;
-
-	// --- 入力コールバック関数 ---
-
-	//攻撃入力時に呼ばれる関数
-	void Attack();
-
-	//ロックオン入力時に呼ばれる関数
-	void LockOn();
-
-	//移動入力がトリガーされた時に呼ばれる関数
-	void Move(const FInputActionValue& Value);
-
-	//視点移動がトリガーされた時に呼ばれる関数
-	void Look(const FInputActionValue& Value);
-
-	//回避入力時に呼ばれる関数
-	void Dodge();
-
-	// --- ロックオン処理 ---
+	ULockOnComponent* LockOnComponent;
 
 	//ロックオン状態を切り替える関数
 	void OnLockOnChanged(AActor* NewTarget);
 
 	//ロックオン中のカメラ補間速度
 	UPROPERTY(EditAnywhere, Category = "LockOn")
-	float LockOnCameraInterpSpeed = 5.f;
+	float m_LockOnCameraInterpSpeed;
 
 	//ロックオン中のカメラの距離オフセット
 	UPROPERTY(EditAnywhere, Category = "LockOn")
-	float LockOnCameraOffsetY = 80.f;
+	float m_LockOnCameraOffsetY;
 
 	//ロックオン中カメラPitchの下限
 	UPROPERTY(EditAnywhere, Category = "LockOn")
-	float LockOnPitchMin = -50.f;
+	float m_LockOnPitchMin;
 
 	//ロックオン中カメラPitchの上限
 	UPROPERTY(EditAnywhere, Category = "LockOn")
-	float LockOnPitchMax = 50.f;
+	float m_LockOnPitchMax;
+
+	//左右オフセットが最大になる内積の絶対値、小さいほど切り替えが機敏
+	UPROPERTY(EditAnywhere, Category = "LockOn")
+	float m_SideBlendRange = 0.5f;
+
+	//注視店をどれだけ敵側によせるか(0=プレイヤー 1=敵)
+	UPROPERTY(EditAnywhere, Category = "LockOn")
+	float m_TargetFocusBias = 0.5f;
+
+	//至近距離での追従速度
+	UPROPERTY(EditAnywhere, Category = "LockOn")
+	float m_LockOnInterpSpeedNear = 12.f;
 
 	FVector DefaultSocketOffset;
 
 	//ロックオン中のかどうかのフラグ
-	bool bsLockedOn = false;
+	bool m_bsLockedOn;
 
 	//ロックオン中のカメラの更新
 	void UpdateLockOnCamera(float DeltaTime);
 
-	// --- 移動・ダッシュ関連のパラメータ ---
+	// -----------------------------------------------------------------------
+	// Ghost システム
+	// -----------------------------------------------------------------------
+	UFUNCTION(BlueprintCallable, Category = "Ghost")
+	void SummonGhost();
 
-	//オートダッシュへの移行時間
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement")
-	float TimeToSprint;
+	// エネルギー（UI 表示用に public）
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Ghost")
+	float m_CurrentEnergy;
 
-	//走り続けている時間を計測する変数
-	float CurrentRunTime;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ghost")
+	float m_MaxEnergy;
 
-	//走り開始と終了
-	void StartSprint();
-	void StopSprint();
+	// 現在召喚中の分身数（UI 表示用）
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Ghost")
+	int32 m_iActiveGhostCount;
 
-	// --- 分身召喚システム ---
+	//機能してません（6月2日）
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ghost")
+	int32 m_iMaxGhostCount;
 
+private:
 	//敵に攻撃がヒットした際に通知を受け取り、エネルギーをチャージする
 	void OnHitEnemy(float EnergyGain);
 
-	//召喚コスト
+	// プレイヤー行動を記録するコンポーネント
 	UPROPERTY(VisibleAnywhere, Category = "Ghost")
-	float GhostSummonCost;
+	UGhostRecorderComponent* GhostRecorder;
 
-	//一回の攻撃で得られるエネルギー
-	UPROPERTY(EditAnywhere, Category = "Ghost")
-	float EnergyGainPerHit;
+	// 分身の召喚・管理コンポーネント（TrySummon 経由で利用可能）
+	UPROPERTY(VisibleAnywhere, Category = "Ghost")
+	UGhostManagerComponent* GhostManager;
 
-	//スポーンするGhostCharacterのクラス指定
+	// 召喚コスト
 	UPROPERTY(EditAnywhere, Category = "Ghost")
+	float m_GhostSummonCost;
+
+	// ヒット時のエネルギー増加量
+	UPROPERTY(EditAnywhere, Category = "Ghost")
+	float m_EnergyGainPerHit;
+
+	// スポーンする GhostCharacter クラス（BP で BP_GhostCharacter を設定）
+	UPROPERTY(EditAnywhere, BlueprintReadWrite,
+		meta = (AllowPrivateAccess = "true"), Category = "Ghost")
 	TSubclassOf<AGhostCharacter> GhostCharacterClass;
 
-public:
-	//現在のエネルギー
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Ghost")
-	float CurrentEnergy;
-
-	//マックスエネルギー
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Ghost")
-	float MaxEnergy;
-
-	//現在召喚中の分身数
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Ghost")
-	int32 ActiveGhostCount;
-
-	//分身の最大数
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ghost")
-	int32 MaxGhostCount;
-
-	//分身の召喚
-	UFUNCTION(BlueprintCallable)
-	void SummonGhost();
-
-private:
-	// --- ジャンプ挙動のカスタマイズ（長押し制御など） ---
+	// -----------------------------------------------------------------------
+	// ジャンプ挙動のカスタマイズ（長押し制御など）
+	// -----------------------------------------------------------------------
 
 	//ジャンプボタンが押された時間
-	float JumpPressedTime = 0.f;
+	float m_JumpPressedTime;
 
 	//長ジャンプと判定するためのボタン長押し時間
 	UPROPERTY(EditAnywhere, Category = "Jump")
-	float JumpHoldThreshold = 0.2f;
+	float m_JumpHoldThreshold;
 
 	//短ジャンプの上方向最大速度
 	UPROPERTY(EditAnywhere, Category = "Jump")
-	float JumpZVelocityShort = 500.f;
+	float m_JumpZVelocityShort;
 
 	//長押しの上方向最大速度
 	UPROPERTY(EditAnywhere, Category = "Jump")
-	float JumpZVelocityLong = 800.f;
+	float m_JumpZVelocityLong;
 
 	void OnJumpPressed();	//ボタンを入力時
 	void OnJumpReleased();	//ボタンを離したとき
-
-public:
-	//自身のMovementComponentをキャストして取得しやすくする
-	UFUNCTION(BlueprintCallable, Category = "Movement")
-	class UActionMovementComponent* GetActionMovementComponent() const;
 };

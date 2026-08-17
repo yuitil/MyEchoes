@@ -7,7 +7,13 @@
 #include "GameFramework/Character.h"
 #include "Kismet/GameplayStatics.h"
 
-ULockOnComponent::ULockOnComponent()
+ULockOnComponent::ULockOnComponent() :
+	m_LockOnRange(1500.f),
+	m_LockOnBreakRange(2000.f),
+	m_SwitchThreshold(0.7f),
+	m_SwitchCooldown(0.4f),
+	m_SwitchCooldownTimer(0.f),
+	m_bSwitchInputActive(false)
 {
 	PrimaryComponentTick.bCanEverTick = true;
 }
@@ -17,9 +23,9 @@ void ULockOnComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActo
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
 	//切り替えクールダウンを更新
-	if (SwitchCooldownTimer > 0.f)
+	if (m_SwitchCooldownTimer > 0.f)
 	{
-		SwitchCooldownTimer = FMath::Max(0.f, SwitchCooldownTimer - DeltaTime);
+		m_SwitchCooldownTimer = FMath::Max(0.f, m_SwitchCooldownTimer - DeltaTime);
 	}
 
 	if (!CurrentTarget.IsValid()) return;
@@ -68,12 +74,12 @@ void ULockOnComponent::TrySwitchTarget(float StickX)
 	if (!IsLockedOn()) return;
 
 	//クールダウン中は無視
-	if (SwitchCooldownTimer > 0.f) return;
+	if (m_SwitchCooldownTimer > 0.f) return;
 
 	//基準値を超えたら切り返し
-	if (FMath::Abs(StickX) >= SwitchThreshold && !bSwitchInputActive)
+	if (FMath::Abs(StickX) >= m_SwitchThreshold && !m_bSwitchInputActive)
 	{
-		bSwitchInputActive = true;
+		m_bSwitchInputActive = true;
 
 		AActor* Next = FindNextTarget(StickX);
 		if (Next && Next != CurrentTarget.Get())
@@ -93,7 +99,7 @@ void ULockOnComponent::TrySwitchTarget(float StickX)
 			}
 
 			CurrentTarget = Next;
-			SwitchCooldownTimer = SwitchCooldown;
+			m_SwitchCooldownTimer = m_SwitchCooldown;
 
 			UE_LOG(LogTemp, Log, TEXT("[LockOn] ターゲット切り替え: %s"), *Next->GetName());
 
@@ -102,9 +108,9 @@ void ULockOnComponent::TrySwitchTarget(float StickX)
 	}
 
 	//スティックを戻したらフラグをリセット
-	if (FMath::Abs(StickX) < SwitchThreshold * 0.5f)
+	if (FMath::Abs(StickX) < m_SwitchThreshold * 0.5f)
 	{
-		bSwitchInputActive = false;
+		m_bSwitchInputActive = false;
 	}
 }
 
@@ -130,8 +136,8 @@ void ULockOnComponent::ClearLockOn()
 	}
 
 	CurrentTarget = nullptr;
-	bSwitchInputActive = false;
-	SwitchCooldown = 0.f;
+	m_bSwitchInputActive = false;
+	m_SwitchCooldownTimer = 0.f;
 	OnLockOnChanged.Broadcast(nullptr);
 }
 
@@ -148,7 +154,7 @@ bool ULockOnComponent::IsTargetValid(AActor* Target) const
 		Target->GetActorLocation()
 	);
 
-	if (Distance > LockOnBreakRange) return false;
+	if (Distance > m_LockOnBreakRange) return false;
 
 	//死亡チェック（Poolに戻ってもDestroyされてないので必須）
 	AEnemyChara* Enemy = Cast<AEnemyChara>(Target);
@@ -188,7 +194,7 @@ AActor* ULockOnComponent::FindBestTarget() const
 			OwnerCharacter->GetActorLocation(),
 			Enemy->GetActorLocation()
 		);
-		if (Distance > LockOnRange) continue;
+		if (Distance > m_LockOnRange) continue;
 
 		//カメラ前方との内積で画面中央に近いものを選ぶ
 		FVector ToEnemy = (Enemy->GetActorLocation() - CameraLocation).GetSafeNormal();
@@ -230,7 +236,7 @@ AActor* ULockOnComponent::FindNextTarget(float Direction) const
 		if (Enemy == CurrentTarget.Get()) continue;
 
 		float Distance = FVector::Dist(OwnerCharacter->GetActorLocation(), Enemy->GetActorLocation());
-		if (Distance > LockOnRange) continue;
+		if (Distance > m_LockOnRange) continue;
 
 		//現在ターゲットから候補敵への方向を求め、カメラ右ベクトルとの内積で左右を判定
 		FVector ToCandidate = (Enemy->GetActorLocation() - CurrentTargetLoc).GetSafeNormal();

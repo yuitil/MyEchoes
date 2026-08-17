@@ -34,8 +34,8 @@ void AEchoHUD::DrawHUD()
 
 	//ターゲットとプレイヤーの距離に応じてマーカーサイズを変える
 	float Distance = FVector::Dist(Player->GetActorLocation(), Target->GetActorLocation());
-	float Scale = MarkerReferenceDistance / FMath::Max(Distance, 1.f);
-	float Radius = FMath::Clamp(MarkerBaseRadius * Scale, MarkerMinRadius, MarkerMaxRadius);
+	float Scale = m_MarkerReferenceDistance / FMath::Max(Distance, 1.f);
+	float Radius = FMath::Clamp(m_MarkerBaseRadius * Scale, m_MarkerMinRadius, m_MarkerMaxRadius);
 
 	DrawCircle(ScreenPos.X, ScreenPos.Y, Radius);
 }
@@ -43,9 +43,9 @@ void AEchoHUD::DrawHUD()
 void AEchoHUD::DrawCircle(float CenterX, float CenterY, float Radius)
 {
 	//円を MarkerSegments 本のLineで近似して描画
-	const float AngleStep = 2.f * PI / MarkerSegments;
+	const float AngleStep = 2.f * PI / m_iMarkerSegments;
 
-	for (int32 i = 0; i < MarkerSegments; ++i)
+	for (int32 i = 0; i < m_iMarkerSegments; ++i)
 	{
 		float A0 = AngleStep * i;
 		float A1 = AngleStep * (i + 1);
@@ -55,6 +55,6 @@ void AEchoHUD::DrawCircle(float CenterX, float CenterY, float Radius)
 		float X1 = CenterX + Radius * FMath::Cos(A1);
 		float Y1 = CenterY + Radius * FMath::Sin(A1);
 
-		DrawLine(X0, Y0, X1, Y1, MarkerColor, MarkerThickness);
+		DrawLine(X0, Y0, X1, Y1, MarkerColor, m_MarkerThickness);
 	}
 }

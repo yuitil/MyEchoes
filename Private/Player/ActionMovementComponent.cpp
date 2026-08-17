@@ -3,7 +3,20 @@
 
 #include "Player/ActionMovementComponent.h"
 
-UActionMovementComponent::UActionMovementComponent()
+UActionMovementComponent::UActionMovementComponent() :
+    m_BaseWalkSpeed(700.f),
+    m_SprintSpeed(1150.f),
+    m_bIsSprinting(false),
+    m_bIsDodging(false),
+    m_AirControlFirstJump(0.3f),
+    m_AirControlSecondJump(0.1f),
+    m_SecondJumpZVelocity(2200.f),
+    m_AirPushForce(1500.f),
+    m_AirMaxHorizontalSpeed(800.f),
+    m_LandingRecoveryTime(0.2f),
+    m_LandingSpeedMultiplier(0.3f),
+    m_bIsLandingRecovery(false),
+    m_LandingRecoveryElapsed(0.f)
 {
     PrimaryComponentTick.bCanEverTick = true;
 
@@ -14,7 +27,7 @@ UActionMovementComponent::UActionMovementComponent()
     GravityScale = 6.f;                   //重力を強くし、もっさりした滞空時間を減らす
     BrakingDecelerationFalling = 2048.f;  //空中でのブレーキ力
 
-    MaxWalkSpeed = BaseWalkSpeed;         
+    MaxWalkSpeed = m_BaseWalkSpeed;
 }
 
 void UActionMovementComponent::TickComponent(
@@ -31,7 +44,7 @@ void UActionMovementComponent::TickComponent(
         bOrientRotationToMovement = false;
 
         //回避中でなければ、空中でも入力方向に対して力を加える
-        if (!bIsDodging)
+        if (!m_bIsDodging)
         {
             FVector InputVector = GetLastInputVector();
             if (!InputVector.IsNearlyZero())
@@ -40,14 +53,14 @@ void UActionMovementComponent::TickComponent(
                 FVector InputDir = InputVector.GetSafeNormal2D();
 
                 //入力方向に力を加算
-                Velocity += InputDir * AirPushForce * DeltaTime;
+                Velocity += InputDir * m_AirPushForce * DeltaTime;
 
                 //水平方向の速度を抽出し、最大速度制限をかける
                 FVector HorizontalVelocity = FVector(Velocity.X, Velocity.Y, 0.f);
-                if (HorizontalVelocity.Size() > AirMaxHorizontalSpeed)
+                if (HorizontalVelocity.Size() > m_AirMaxHorizontalSpeed)
                 {
                     //制限を超えている場合はクランプする
-                    HorizontalVelocity = HorizontalVelocity.GetSafeNormal() * AirMaxHorizontalSpeed;
+                    HorizontalVelocity = HorizontalVelocity.GetSafeNormal() * m_AirMaxHorizontalSpeed;
                     Velocity.X = HorizontalVelocity.X;
                     Velocity.Y = HorizontalVelocity.Y;
                 }
@@ -60,29 +73,30 @@ void UActionMovementComponent::TickComponent(
         bOrientRotationToMovement = true;
     }
 
+    //最大速度の決定
+    float DesiredSpeed = m_bIsSprinting ? m_SprintSpeed : m_BaseWalkSpeed;
+
     //着地硬直の回復処理
-    if (bIsLandingRecovery)
+    if (m_bIsLandingRecovery)
     {
-        LandingRecoveryElapsed += DeltaTime;
+        m_LandingRecoveryElapsed += DeltaTime;
 
         //回復の進行度を0.0～1.0の範囲で算出
-        float Alpha = FMath::Clamp(LandingRecoveryElapsed / LandingRecoveryTime, 0.f, 1.f);
+        float Alpha = FMath::Clamp(m_LandingRecoveryElapsed / m_LandingRecoveryTime, 0.f, 1.f);
 
         //最初は重く、後から急速に元の速度に戻るような手触りにする
         float EasedAlpha = FMath::InterpEaseIn(0.f, 1.f, Alpha, 2.f);
 
-        MaxWalkSpeed = FMath::Lerp(
-            CachedMaxWalkSpeed * LandingSpeedMultiplier,
-            CachedMaxWalkSpeed,
-            EasedAlpha);
+        DesiredSpeed *= FMath::Lerp(m_LandingSpeedMultiplier, 1.f, EasedAlpha);
 
         //回復時間が終了したら、速度を完全に戻す
         if (Alpha >= 1.f)
         {
-            bIsLandingRecovery = false;
-            MaxWalkSpeed = CachedMaxWalkSpeed;
+            m_bIsLandingRecovery = false;
         }
     }
+
+    MaxWalkSpeed = DesiredSpeed;
 }
 
 void UActionMovementComponent::SetMovementWeight(
@@ -94,17 +108,43 @@ void UActionMovementComponent::SetMovementWeight(
 
 void UActionMovementComponent::SetSprinting(bool _bIsSprinting)
 {
-    //ダッシュフラグに応じて最大速度を切り替え
-    MaxWalkSpeed = _bIsSprinting ? SprintSpeed : BaseWalkSpeed;
-    bIsSprinting = _bIsSprinting;
+    m_bIsSprinting = _bIsSprinting;
 }
 
-void UActionMovementComponent::StartLandingRecovery(bool bWasSprinting)
+void UActionMovementComponent::StartLandingRecovery()
 {
-    //着地の状態を元に回復するべき目標速度を保存
-    CachedMaxWalkSpeed = bWasSprinting ? SprintSpeed : BaseWalkSpeed;
-    LandingRecoveryElapsed = 0.f;
-    bIsLandingRecovery = true;
-    //着地瞬間の速度を制限
-    MaxWalkSpeed = CachedMaxWalkSpeed * LandingSpeedMultiplier;
+    m_LandingRecoveryElapsed = 0.f;
+    m_bIsLandingRecovery = true;
+}
+
+void UActionMovementComponent::StartDodge(const FVector& Direction, float Force)
+{
+    m_bIsDodging = true;
+
+    //元の物理パラメータを退避
+    m_CachedGravityScale = GravityScale;
+    m_CachedGroundFriction = GroundFriction;
+
+    //回避中だけ重力と摩擦を無効化し、慣性を切る
+    GravityScale = 0.f;
+    GroundFriction = 0.f;
+    Velocity = FVector::ZeroVector;
+
+    //水平方向へ瞬間的な推進力を与える
+    FVector Dir = Direction;
+    Dir.Z = 0.f;
+    Launch(Dir.GetSafeNormal() * Force);
+}
+
+void UActionMovementComponent::EndDodge()
+{
+    if (!m_bIsDodging) return;   //二重呼び出しガード
+
+    GravityScale = m_CachedGravityScale;
+    GroundFriction = m_CachedGroundFriction;
+
+    Velocity.X = 0.f;
+    Velocity.Y = 0.f;
+
+    m_bIsDodging = false;
 }

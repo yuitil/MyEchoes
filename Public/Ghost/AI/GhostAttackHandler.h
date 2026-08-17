@@ -28,13 +28,13 @@ public:
 private:
     // ヒット判定の範囲
     UPROPERTY(EditAnywhere, Category = "Ghost")
-    float AttackRadius = 60.f;
+    float m_AttackRadius = 60.f;
 
     // ヒット判定の距離
     UPROPERTY(EditAnywhere, Category = "Ghost")
-    float AttackRange = 100.f;
+    float m_AttackRange = 100.f;
 
     // ダメージ量
     UPROPERTY(EditAnywhere, Category = "Ghost")
-    float AttackDamage = 10.f;
+    float m_AttackDamage = 10.f;
 };

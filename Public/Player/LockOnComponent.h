@@ -46,25 +46,25 @@ private:
 	TWeakObjectPtr<AActor> CurrentTarget;
 
 	//ロックオン可能な最大距離
-	float LockOnRange = 1500.f;
+	float m_LockOnRange;
 
 	//ロックオン自動解除距離
 	UPROPERTY(EditAnywhere, Category = "LockOn")
-	float LockOnBreakRange = 2000.f;
+	float m_LockOnBreakRange;
 
 	//右スティック切り替えの入力基準値
 	UPROPERTY(EditAnywhere, Category = "LockOn")
-	float SwitchThreshold = 0.7f;
+	float m_SwitchThreshold;
 
 	//切り替え後の入力クールダウン
 	UPROPERTY(EditAnywhere, Category = "LockOn")
-	float SwitchCooldown = 0.4f;
+	float m_SwitchCooldown;
 
 	//切り替えクールダウンの残り時間
-	float SwitchCooldownTimer = 0.f;
+	float m_SwitchCooldownTimer;
 
 	//スティックが基準値を超えているか
-	bool bSwitchInputActive = false;
+	bool m_bSwitchInputActive;
 
 	//画面中央に最も近い敵を探す
 	AActor* FindBestTarget() const;

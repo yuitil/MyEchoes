@@ -21,5 +21,5 @@ public:
 private:
     // 攻撃後の待機時間（連続攻撃しないように）
     UPROPERTY(EditAnywhere, Category = "GhostAI")
-    float AttackCooldown = 1.f;
+    float m_AttackCooldown;
 };

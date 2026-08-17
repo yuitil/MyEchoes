@@ -12,7 +12,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnEnemyEliminated, AEnemyChara*, El
 
 //敵のステート
 UENUM(BlueprintType)
-enum class EEnemyState : uint8 
+enum class EEnemyState : uint8
 {
 	Idle UMETA(DisplayName = "Idle"),
 	Patrol UMETA(DisplayName = "Patrol"),
@@ -20,6 +20,15 @@ enum class EEnemyState : uint8
 	Attack UMETA(DisplayName = "Attack"),
 	Stunned UMETA(DisplayName = "Stunned"),
 	Dead UMETA(DisplayName = "Dead")
+};
+
+//敵勇者パーティ
+UENUM(BlueprintType)
+enum class EEnemyRole : uint8
+{
+	Warrior   UMETA(DisplayName = "Warrior (前衛)"),
+	Mage      UMETA(DisplayName = "Mage (魔法使い)"),
+	Priest    UMETA(DisplayName = "Priest (僧侶)")
 };
 
 UCLASS()
@@ -35,7 +44,7 @@ protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 
-public:	
+public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
 
@@ -70,7 +79,7 @@ public:
 	FORCEINLINE void SetTargetActor(AActor* _actor) { m_targetActor = _actor; }
 
 	//現在のステートを取得
-	FORCEINLINE EEnemyState GetCurrentState() const { return m_currentState;  }
+	FORCEINLINE EEnemyState GetCurrentState() const { return m_currentState; }
 
 	//現在のステートを設定
 	FORCEINLINE void SetCurrentState(EEnemyState _state) { m_currentState = _state; }
@@ -88,19 +97,19 @@ protected:
 	float m_currentHP;
 
 	//最大の体力
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite,  Category = "Health")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Health")
 	float m_maxHP;
 
 	//攻撃範囲
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite,  Category = "Attack")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Attack")
 	float m_attackRange;
 
 	//ダメージ
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite,  Category = "Damage")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Damage")
 	float m_damage;
 
 	//攻撃クールダウン
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite,  Category = "Attack")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Attack")
 	float m_cooldownTimer;
 
 	//動きスピード
@@ -108,11 +117,11 @@ protected:
 	float m_moveSpeed;
 
 	//現在の状態
-	UPROPERTY(BlueprintReadOnly,  Category = "AI")
+	UPROPERTY(BlueprintReadOnly, Category = "AI")
 	EEnemyState m_currentState = EEnemyState::Idle;
 
 	//ターゲットアクター
-	UPROPERTY(BlueprintReadOnly,  Category = "TargetActor")
+	UPROPERTY(BlueprintReadOnly, Category = "TargetActor")
 	AActor* m_targetActor;
 
 	//ビヘイビアツリー
@@ -120,7 +129,7 @@ protected:
 	UBehaviorTree* m_behaviorTree;
 
 	//感知コンポーネント
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly,  Category = "AI")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "AI")
 	UPawnSensingComponent* m_pawnSensing;
 
 	//攻撃アニメーション
@@ -128,4 +137,13 @@ protected:
 	UAnimMontage* m_attackMontage;
 
 	FTimerHandle m_attackTimerHandle;
+
+public:
+	//敵の役職を取得する
+	FORCEINLINE EEnemyRole GetEnemyRole() const { return m_enemyRole; }
+
+	protected:
+		// 敵の役職（エディタ側で変更可能）
+		UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI")
+		EEnemyRole m_enemyRole = EEnemyRole::Warrior; // デフォルトは戦士
 };
