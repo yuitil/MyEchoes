@@ -166,7 +166,7 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Ghost")
 	int32 m_iActiveGhostCount;
 
-	//機能してません（6月2日）
+	//分身の最大召喚数
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ghost")
 	int32 m_iMaxGhostCount;
 
