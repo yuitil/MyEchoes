@@ -11,8 +11,6 @@
 #include "Components/ActorComponent.h"
 #include "CombatComponent.generated.h"
 
-//分身システムに攻撃・回避アクションを通知するためのデリゲート
-//DECLARE_MULTICAST_DELEGATE_OneParam(FOnGhostAction, const FGhostActionData&);
 //敵にヒットした際、キャラクタークラスにダメージを通知するデリゲート
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnHitEnemyDelegate, float);
 
@@ -125,9 +123,6 @@ private:
 	//クールダウンタイマー終了時に回避状態に戻す関数
 	void ResetDodgeCooldown();
 
-
-	//ラヤマジ追加分
-	//ゴーストレコーダーに呼び出しがあったものだけここに残しておく6.2
 public:
 	bool IsAttacking() const { return m_bIsAttacking; }
 	bool IsDodging()   const { return m_bIsDodging; }
