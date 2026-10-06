@@ -7,6 +7,8 @@
 #include "GameFramework/Character.h"
 #include "Kismet/GameplayStatics.h"
 
+#include "DrawDebugHelpers.h" //デバッグ用
+
 ULockOnComponent::ULockOnComponent() :
 	m_LockOnRange(1500.f),
 	m_LockOnBreakRange(2000.f),
@@ -36,6 +38,9 @@ void ULockOnComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActo
 		UE_LOG(LogTemp, Log, TEXT("[LockOn] ターゲット無効により自動解除: %s"), *CurrentTarget->GetName());
 		ClearLockOn();
 	}
+
+	//デバッグ用
+	if (m_bDebugDraw && IsLockedOn()) DrawLockOnDebug();
 }
 
 void ULockOnComponent::ToggleLockOn()
@@ -227,7 +232,7 @@ AActor* ULockOnComponent::FindNextTarget(float Direction) const
 
 	AActor* BestCandidate = nullptr;
 
-	//現在のターゲットから角度差が最も小さい敵を選ぶ
+	//現在のターゲットから距離が最も近い敵を選ぶ
 	float BestScore = FLT_MAX;
 
 	for (AActor* Enemy : Enemies)
@@ -255,4 +260,41 @@ AActor* ULockOnComponent::FindNextTarget(float Direction) const
 	}
 
 	return BestCandidate;
+}
+
+//デバッグ用
+void ULockOnComponent::DrawLockOnDebug() const
+{
+#if ENABLE_DRAW_DEBUG
+	ACharacter* OwnerCharacter = Cast<ACharacter>(GetOwner());
+	UCameraComponent* Camera = OwnerCharacter ? OwnerCharacter->FindComponentByClass<UCameraComponent>() : nullptr;
+	if (!Camera) return;
+
+	UWorld* World = GetWorld();
+	const FVector CurLoc = CurrentTarget->GetActorLocation();
+	const FVector CamRight = Camera->GetRightVector();
+
+	//現在のターゲットと、カメラ右ベクトル
+	DrawDebugSphere(World, CurLoc, 60.f, 16, FColor::Yellow, false, -1.f, 0, 2.f);
+	const FVector ArrowStart = CurLoc + FVector(0.f, 0.f, 50.f);
+	DrawDebugDirectionalArrow(World, ArrowStart, ArrowStart + CamRight * 300.f, 60.f, FColor::White, false, -1.f, 0, 4.f);
+
+	TArray<AActor*> Enemies;
+	UGameplayStatics::GetAllActorsOfClass(World, AEnemyChara::StaticClass(), Enemies);
+
+	for (AActor* Enemy : Enemies)
+	{
+		if (Enemy == CurrentTarget.Get() || !IsTargetValid(Enemy)) continue;
+
+		const FVector ToCandidate = (Enemy->GetActorLocation() - CurLoc).GetSafeNormal();
+		const float   RightDot = FVector::DotProduct(CamRight, ToCandidate);
+
+		//右側＝ピンク、左側＝紫
+		const FColor Col = (RightDot > 0.f) ? FColor(255, 110, 160) : FColor(150, 140, 230);
+
+		DrawDebugLine(World, CurLoc, Enemy->GetActorLocation(), Col, false, -1.f, 0, 3.f);
+		DrawDebugString(World, Enemy->GetActorLocation() + FVector(0, 0, 120.f),
+			FString::Printf(TEXT("%+.2f"), RightDot), nullptr, Col, 0.f, true, 2.f);
+	}
+#endif
 }
