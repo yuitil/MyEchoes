@@ -77,4 +77,11 @@ private:
 
 	//ターゲットが有効かチェック
 	bool IsTargetValid(AActor* Target) const;
+
+
+	//ロックオンを可視化するデバッグ用
+	UPROPERTY(EditAnywhere, Category = "LockOn|Debug")
+	bool m_bDebugDraw = false;
+
+	void DrawLockOnDebug() const;
 };
